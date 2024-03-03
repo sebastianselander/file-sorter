@@ -31,8 +31,6 @@
                 pkgs.haskellPackages.fourmolu
                 pkgs.haskellPackages.hoogle
                 pkgs.haskellPackages.magic
-                pkgs.pkg-config
-                pkgs.file
                 pkgs.zlib
               ];
             };

@@ -1,82 +1,88 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Main where
 
 import Control.Concurrent
-import Data.List (isInfixOf)
-import Magic
+import Control.Monad (forever)
+import System.Directory (
+    createDirectory,
+    doesDirectoryExist,
+    doesFileExist,
+    renameFile, canonicalizePath,
+ )
+import System.Environment
+import System.Exit (exitFailure)
 import System.FSNotify
 import System.FilePath
-import Language.Haskell.TH
-
-move :: String -> Q Dec
-move nm = do
-    name <- newName "move"
-    funD name [clau]
-  where
-    clau :: Q Clause
-    clau = do 
-        Just f <- lookupValueName "isInfixOf"
-        let firstE = appE (varE f) (litE (StringL "pdf"))
-        let secondE = litE (StringL "blopdfblo")
-        expr <- appE firstE secondE
-        guardPat <- normalG (return expr)
-        let body = guardedB [return (guardPat, LitE (CharL 'a'))]
-        name <- newName "x"
-        let ma = match (varP name) body []
-        undefined
-    
-
-mkPath :: FilePath -> FilePath
-mkPath p = concat ["/", p, "/"]
-
-pdf, pdfPath :: FilePath
-pdf = "pdf"
-pdfPath = mkPath pdf
-
-jpeg, jpegPath :: FilePath
-jpeg = "jpeg"
-jpegPath = mkPath jpeg
-
-png, pngPath :: FilePath
-png = "jpeg"
-pngPath = mkPath png
-
-sleepSecs :: Int -> IO ()
-sleepSecs n = threadDelay (n * 1_000_000)
+import System.IO (hFlush, stdout)
+import Text.Printf (printf)
 
 shouldAct :: Event -> Bool
 shouldAct (Added{}) = True
 shouldAct _ = False
 
-mkNewName :: FilePath -> FilePath -> FilePath
-mkNewName oldpath dir = takeDirectory oldpath <> dir <> takeFileName oldpath
+-- Finds non-overlappig appropriate name.
+-- Does nothing if there are no collisions
+findNewTargetPath :: FilePath -> IO FilePath
+findNewTargetPath path = go Nothing
+  where
+    go :: Maybe Int -> IO FilePath
+    go Nothing =
+        doesFileExist path >>= \case
+            True -> go (Just 1)
+            False -> pure path
+    go (Just n) = do
+        let basename = dropExtension path
+        let extension = takeExtension path
+        let newpath = basename <> "(" <> show n <> ")" <> extension
+        doesFileExist newpath >>= \case
+            False -> pure newpath
+            True -> go (Just (n + 1))
 
-moveFile :: FilePath -> String -> IO ()
-moveFile oldname mime
-    | pdf `isInfixOf` mime = putStrLn $ "New path: " <> mkNewName oldname pdfPath
-    | jpeg `isInfixOf` mime = putStrLn $ "New path: " <> mkNewName oldname jpegPath
-    | png `isInfixOf` mime = putStrLn $ "New path: " <> mkNewName oldname pngPath
-    | otherwise = return ()
+-- Returns the target directory and target path in a tuple
+findTargetPath :: FilePath -> Maybe (FilePath, FilePath)
+findTargetPath path = case takeExtension path of
+    "" -> Nothing
+    _ : extension ->
+        let targetDir = takeDirectory path </> extension
+         in Just (targetDir, targetDir </> takeFileName path)
 
 act :: Event -> IO ()
-act (Added path _ IsFile) = do
-    magic <- magicOpen [MagicMime]
-    magicLoadDefault magic
-    mime <- magicFile magic path
-    putStrLn $ "Mime: " <> mime
-    putStrLn $ "Path: " <> path
+act (Added oldpath _time IsFile) = do
     putStrLn ""
-    moveFile path mime
+    putStrLn $ "Path: " <> oldpath
+    case findTargetPath oldpath of
+        Just (targetDir, targetPath) -> do
+            print (targetDir, targetPath)
+            doesDirectoryExist targetDir >>= \case
+                False -> do
+                    createDirectory targetDir
+                    renameFile oldpath targetPath
+                True -> do
+                    newTargetPath <- findNewTargetPath targetPath
+                    renameFile oldpath newTargetPath
+        Nothing -> return ()
 act _ = return ()
 
 main :: IO ()
 main = do
-    putStrLn "Running..."
+    args <- getArgs
+    path <- case args of
+        (x : _) ->
+            doesDirectoryExist x >>= \case
+                True -> pure x
+                False -> do
+                    printf "'%s' is not a directory\n" x
+                    hFlush stdout
+                    exitFailure
+        _else -> do
+            printf "Incorrect amount of arguments '%d'\nExpected one argument to a directory\n" (length _else) 
+            hFlush stdout
+            exitFailure
+    canonical <- canonicalizePath path
+    putStrLn $ "Watching " <> canonical
     mgr <- startManager
-    _ <- watchDir mgr "." shouldAct act
-    _ <- getLine
+    _ <- watchDir mgr canonical shouldAct act
+    _ <- forever $ threadDelay 1_000_000
     stopManager mgr
     putStrLn "Stopping..."
-
--- hello
