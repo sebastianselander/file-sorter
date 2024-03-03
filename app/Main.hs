@@ -9,10 +9,22 @@ import System.FSNotify
 import System.FilePath
 import Language.Haskell.TH
 
-pathN :: [String] -> Q [Dec]
-pathN xs = for xs $ \n -> do
-    let name = undefined
-    undefined
+move :: String -> Q Dec
+move nm = do
+    name <- newName "move"
+    funD name [clau]
+  where
+    clau :: Q Clause
+    clau = do 
+        Just f <- lookupValueName "isInfixOf"
+        let firstE = appE (varE f) (litE (StringL "pdf"))
+        let secondE = litE (StringL "blopdfblo")
+        expr <- appE firstE secondE
+        guardPat <- normalG (return expr)
+        let body = guardedB [return (guardPat, LitE (CharL 'a'))]
+        name <- newName "x"
+        let ma = match (varP name) body []
+        undefined
     
 
 mkPath :: FilePath -> FilePath
