@@ -1,3 +1,7 @@
+# PROBLEM
+
+Currently unusable as files are moved before being fully downloaded.
+
 # File-sorter
 
 A tool for sorting a directory into more managable sub-directories.
