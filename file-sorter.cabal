@@ -21,17 +21,20 @@ common warnings
 executable file-sorter
   import:           warnings
   main-is:          Main.hs
+  other-modules:
+    Options
+    Parser
 
-  other-modules:    Parser
   -- other-extensions:
   build-depends:
-    , base        >=4.17
+    , base                  >=4.17
+    , containers
+    , directory
     , filepath
     , fsnotify
+    , optparse-applicative
     , process
     , unix
-    , directory
-    , containers
 
   hs-source-dirs:   app
   default-language: GHC2021

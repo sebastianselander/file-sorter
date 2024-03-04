@@ -1,4 +1,4 @@
-module Parser (parseConfig) where
+module Parser (parseConfig, Extension(..)) where
 
 import Control.Monad (unless)
 import Data.Char (isAlpha)
@@ -18,22 +18,26 @@ import Text.ParserCombinators.ReadP (
     string,
  )
 
-parseConfig :: FilePath -> IO (Map FilePath FilePath)
-parseConfig file = do
+data Extension = ExtIgnore | Ext !String
+    deriving (Show, Eq, Ord)
+
+parseConfig :: Maybe FilePath -> IO (Map FilePath Extension)
+parseConfig Nothing = pure mempty
+parseConfig (Just file) = do
     b <- doesFileExist file
     unless b (putStrLn $ "'" <> file <> "' does not exist")
     input <- readFile file
     parseText input
 
-parseText :: String -> IO (Map FilePath FilePath)
+parseText :: String -> IO (Map FilePath Extension)
 parseText input = case readP_to_S fileP input of
     [(xs, "")] -> return (Map.fromList xs)
     _else -> putStrLn "Failed parsing config file" >> exitFailure
 
-fileP :: ReadP [(String, String)]
+fileP :: ReadP [(String, Extension)]
 fileP = sepBy lineP (char '\n') <* skipSpaces <* eof
 
-lineP :: ReadP (String, String)
+lineP :: ReadP (String, Extension)
 lineP = do
     skipSpaces
     left <- anyString
@@ -41,7 +45,9 @@ lineP = do
     _ <- string "->"
     skipSpaces
     right <- anyString
-    pure (left, right)
+    case right of
+        "ignore" -> pure (left, ExtIgnore)
+        _        -> pure (left, Ext right)
 
 anyString :: ReadP String
 anyString = many1 (satisfy isAlpha)
