@@ -1,6 +1,7 @@
 # PROBLEM
 
-Currently unusable as files are moved before being fully downloaded.
+> [!WARNING]
+> Currently unusable as files are moved before being fully downloaded.
 
 # File-sorter
 
