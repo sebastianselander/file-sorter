@@ -28,10 +28,10 @@ executable file-sorter
     , base        >=4.17
     , filepath
     , fsnotify
-    , hdaemonize
     , process
     , unix
     , directory
+    , containers
 
   hs-source-dirs:   app
   default-language: GHC2021
