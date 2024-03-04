@@ -20,7 +20,6 @@ import System.FSNotify (
     Event (..),
     EventIsDirectory (..),
     startManager,
-    stopManager,
     watchDir,
  )
 import System.FilePath (
@@ -117,9 +116,6 @@ main = do
             putStrLn "Expected:\n    file-sorter <PATH_TO_DIR> (optional: <PATH_TO_CONFIG>)"
             exitFailure
     canonical <- canonicalizePath path
-    putStrLn $ "Watching " <> canonical
     mgr <- startManager
     void $ watchDir mgr canonical shouldAct (act dictionary)
     void $ forever (threadDelay 1_000_000)
-    stopManager mgr
-    putStrLn "Stopping..."
