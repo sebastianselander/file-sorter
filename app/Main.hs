@@ -6,6 +6,7 @@ import Control.Concurrent (threadDelay)
 import Control.Monad (forever, void, when)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Parser (parseConfig)
 import System.Directory (
     canonicalizePath,
     createDirectory,
@@ -93,20 +94,25 @@ act dictionary (Added oldpath _time IsFile) = do
         Nothing -> return ()
 act _ _ = return ()
 
+directoryExist :: FilePath -> IO ()
+directoryExist path = do
+    doesDirectoryExist path >>= \case
+        True -> pure ()
+        False -> do
+            putStrLn $ "'" <> path <> "' does not exist or is not a directory"
+            exitFailure
 main :: IO ()
 main = do
     when
         (os /= "linux")
         (putStrLn ("Bad operating system: " <> os) >> exitFailure)
     args <- getArgs
-    path <- case args of
-        (x : _) ->
-            doesDirectoryExist x >>= \case
-                True -> pure x
-                False -> do
-                    printf "'%s' is not a directory\n" x
-                    hFlush stdout
-                    exitFailure
+    (path, dictionary) <- case args of
+        [path] -> directoryExist path >> pure (path, mempty)
+        [path, configuration] -> do
+            directoryExist path
+            dict <- parseConfig configuration
+            pure (path, dict)
         _else -> do
             putStrLn "Incorrect amount of arguments"
             putStrLn "Expected one argument to a directory"

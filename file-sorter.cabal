@@ -22,7 +22,7 @@ executable file-sorter
   import:           warnings
   main-is:          Main.hs
 
-  -- other-modules:
+  other-modules:    Parser
   -- other-extensions:
   build-depends:
     , base        >=4.17
