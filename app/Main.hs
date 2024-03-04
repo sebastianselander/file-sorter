@@ -30,9 +30,7 @@ import System.FilePath (
     takeFileName,
     (</>),
  )
-import System.IO (hFlush, stdout)
 import System.Info (os)
-import Text.Printf (printf)
 
 shouldAct :: Event -> Bool
 shouldAct Added{} = True
@@ -56,9 +54,10 @@ findNewTargetPath path = go Nothing
             False -> pure newpath
             True -> go (Just (n + 1))
 
--- | Find the target path based on the file extension.
--- If the extension is mapped to something in the dictionary choose that one,
--- otherwise the extension is chosen as the target directory.
+{- | Find the target path based on the file extension.
+If the extension is mapped to something in the dictionary choose that one,
+otherwise the extension is chosen as the target directory.
+-}
 findTargetPath ::
     Map FilePath FilePath ->
     FilePath ->
@@ -76,14 +75,13 @@ findTargetPath dictionary path = case takeExtension path of
          in Just (targetDir, targetDir </> fileName)
 
 -- On a file being added to the directory,
--- move that file to the appropriate directory 
+-- move that file to the appropriate directory
 act :: Map FilePath FilePath -> Event -> IO ()
 act dictionary (Added oldpath _time IsFile) = do
     putStrLn ""
     putStrLn $ "Path: " <> oldpath
     case findTargetPath dictionary oldpath of
         Just (targetDir, targetPath) -> do
-            print (targetDir, targetPath)
             doesDirectoryExist targetDir >>= \case
                 False -> do
                     createDirectory targetDir
@@ -101,6 +99,7 @@ directoryExist path = do
         False -> do
             putStrLn $ "'" <> path <> "' does not exist or is not a directory"
             exitFailure
+
 main :: IO ()
 main = do
     when
@@ -115,10 +114,8 @@ main = do
             pure (path, dict)
         _else -> do
             putStrLn "Incorrect amount of arguments"
-            putStrLn "Expected one argument to a directory"
+            putStrLn "Expected:\n    file-sorter <PATH_TO_DIR> (optional: <PATH_TO_CONFIG>)"
             exitFailure
-    -- TODO: Let users customize mappings by some config file
-    let dictionary = mempty
     canonical <- canonicalizePath path
     putStrLn $ "Watching " <> canonical
     mgr <- startManager
