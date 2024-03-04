@@ -1,5 +1,5 @@
 {
-  description = "File sorter daemon";
+  description = "File sorter";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -9,7 +9,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         haskell-packages = nixpkgs.legacyPackages.${system}.haskell.packages;
-        ghcVersion = "ghc982";
+        ghcVersion = "ghc98";
         pkgs = import nixpkgs {
           inherit system;
         };
@@ -30,7 +30,6 @@
                 pkgs.haskellPackages.cabal-install
                 pkgs.haskellPackages.fourmolu
                 pkgs.haskellPackages.hoogle
-                pkgs.haskellPackages.magic
                 pkgs.zlib
               ];
             };
