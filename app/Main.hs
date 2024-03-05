@@ -1,10 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Main where
 
-import Control.Concurrent (threadDelay)
+import Control.Concurrent (forkIO, threadDelay)
 import Control.Monad (forever, void, when, zipWithM_)
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -37,9 +36,14 @@ import System.Info (os)
 todo :: a
 todo = error "TODO: Not yet implemented"
 
-isFile :: Event -> Bool
-isFile (Added _ _ IsFile) = True
-isFile _ = False
+-- Time to wait after getting a CloseWrite event before moving the file.
+writeWait :: Double
+writeWait = 0.5
+
+shouldAct :: Event -> Bool
+shouldAct (ModifiedAttributes _ _ IsFile) = True
+shouldAct (CloseWrite _ _ IsFile) = True
+shouldAct _ = False
 
 -- Finds non-overlappig appropriate name.
 -- Does nothing if there are no collisions
@@ -85,8 +89,22 @@ findTargetPath dictionary path = case takeExtension path of
 -- On a file being added to the directory,
 -- move that file to the appropriate directory
 act :: Map FilePath Extension -> Event -> IO ()
-act dictionary (Added path _ IsFile) = void $ moveFile dictionary path
+act dict (ModifiedAttributes path _time IsFile) =
+    void (forkIO (void (moveFile dict path)))
+act dict (CloseWrite path _time IsFile) =
+    void (forkIO (void (moveFileIfTimePassed writeWait dict path)))
 act _ _ = return ()
+
+moveFileIfTimePassed ::
+    Double ->
+    Map FilePath Extension ->
+    FilePath ->
+    IO (Maybe String)
+moveFileIfTimePassed secs dict path = do
+    threadDelay (floor $ 1_000_000.0 * secs)
+    doesFileExist path >>= \case
+        False -> pure Nothing
+        True -> moveFile dict path
 
 moveFile :: Map FilePath Extension -> FilePath -> IO (Maybe String)
 moveFile dictionary path = case findTargetPath dictionary path of
@@ -131,14 +149,15 @@ main = do
     configuration <- mapM canonicalizePath opts.config
     directory <- canonicalizePath opts.directory
     dict <- parseConfig configuration
-    if opts.sortOnce then do
-        sortDirectory dict directory
-        putStrLn ("Sorted '" <> directory <> "'")
-        exitSuccess
-    else do
-        directoryExist directory
-        putStrLn $ "Watching " <> directory
-        mgr <- startManager
-        void $ watchDir mgr directory isFile (act dict)
-        void $ forever (threadDelay 1_000_000)
-        exitFailure
+    if opts.sortOnce
+        then do
+            sortDirectory dict directory
+            putStrLn ("Sorted '" <> directory <> "'")
+            exitSuccess
+        else do
+            directoryExist directory
+            putStrLn $ "Watching " <> directory
+            mgr <- startManager
+            void $ watchDir mgr directory shouldAct (act dict)
+            void $ forever (threadDelay 1_000_000)
+            exitFailure

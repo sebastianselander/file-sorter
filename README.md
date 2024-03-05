@@ -1,8 +1,3 @@
-# PROBLEM
-
-> [!WARNING]
-> Currently unusable as files are moved before being fully downloaded.
-
 # File-sorter
 
 A tool for sorting a directory into more managable sub-directories.
@@ -10,6 +5,11 @@ A tool for sorting a directory into more managable sub-directories.
 Running file-sorter on a directory starts a service that watches for 'added file events'.
 On such an event, the added file is moved into an appropriate sub-directory.
 Unless modified by a configuration file this is a directory matching the file extension.
+
+Files are moved after the event ModifiedAttritbute. This is the last event sent
+when files are downloaded. For curl and friends the last event sent is
+CloseWrite, and to solve this we try to move the file 0.5 seconds after getting
+a CloseWrite, if the file still exists at the original path.
 
 ## Config
 Where files are moved can be customized by a configuration file. 
