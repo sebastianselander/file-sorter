@@ -36,7 +36,7 @@ import System.Info (os)
 todo :: a
 todo = error "TODO: Not yet implemented"
 
--- Time to wait after getting a CloseWrite event before moving the file.
+-- Time to wait in seconds after getting a CloseWrite event before moving the file.
 writeWait :: Double
 writeWait = 0.5
 

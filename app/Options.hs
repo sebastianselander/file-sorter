@@ -6,10 +6,14 @@ data Options = Options
     { sortOnce :: !Bool
     , config :: !(Maybe FilePath)
     , directory :: !FilePath
-    } deriving (Show)
+    }
+    deriving (Show)
 
 options :: IO Options
-options = execParser (info (Options <$> sortParser <*> configParser <*> directoryParser) fullDesc)
+options = execParser (info (optionsParser <**> helper) fullDesc)
+
+optionsParser :: Parser Options
+optionsParser = Options <$> sortParser <*> configParser <*> directoryParser
 
 sortParser :: Parser Bool
 sortParser =
@@ -26,12 +30,20 @@ sortParser =
 
 configParser :: Parser (Maybe FilePath)
 configParser =
-    optional $ strOption
-        ( long "config"
-            <> short 'c'
-            <> metavar "<FILE>"
-            <> help "Optional extension to directory mapping configuration file"
-        )
+    optional $
+        strOption
+            ( long "config"
+                <> short 'c'
+                <> metavar "<FILE>"
+                <> help
+                    ( concat
+                        [ "Optional configuration file consisting of custom"
+                        , "target directories for specific file extensions."
+                        , "A config file consists of lines of <EXTENION> -> "
+                        , "TARGETDIR | \"ignore\">"
+                        ]
+                    )
+            )
 
 directoryParser :: Parser FilePath
 directoryParser = argument str (metavar "<FILE>")
